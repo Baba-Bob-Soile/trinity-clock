@@ -3,6 +3,7 @@ import time
 import datetime
 import spidev
 import matplotlib.pyplot as plt
+import matplotlib.dates as md
 from scipy import signal
 import numpy as np
 import os
@@ -41,23 +42,35 @@ def plot_weighted_ma():
         ##axarr[4].set_ylabel("Filtered")
         ##axarr[4].plot(time_noise, filtered)
         fig.savefig("Noise_in_Tilt_Comparison{}_weighted.png".format(filename))
-def plot_conv_ma():
+def plot_conv_ma():      
+        xfmt = md.DateFormatter('%H:%M')
+        xfmtb= md.HourLocator()
+        xfmtc= md.MinuteLocator(interval=15)
         fig, axarr = plt.subplots(4, sharex=True)
-        axarr[0].set_title("Tilt Measurements")
+        time_start=time.strftime("%Y-%m-%d",time.localtime(time_noise[1]))
+        axarr[0].set_title("Tilt Measurements from {}".format(time_start))
         axarr[0].set_ylabel("Inst.")
         axarr[0].plot(datetime_noise, inst)
-        axarr[1].set_ylabel("6 MA")
+        axarr[1].set_ylabel("3 MA")
         axarr[1].plot(datetime_noise, mov_ave)
-        axarr[2].set_ylabel("12 MA")
+        axarr[2].set_ylabel("18 MA")
         axarr[2].plot(datetime_noise, mov_ave_second)
-        axarr[3].set_ylabel("27 MA")
+        axarr[3].set_ylabel("33 MA")
         axarr[3].plot(datetime_noise, mov_ave_three)
+        
+        ax=plt.gca()
+        ax.xaxis.set_major_formatter(xfmt)
+        ax.xaxis.set_major_locator(xfmtb)
+        #ax.xaxis.set_minor_locator(xfmtc)
+        
         fig.savefig("Noise_in_Tilt_Comparison_{}_conv.png".format(name))
 
-
+print "Enter a file name:",
+name = raw_input()
+tic=time.time()
 path="/home/pi/"
-#name="tilt9_1_hr_after"
-name="2017-02-22_20-53-28"
+#name="tilt8b"
+#name="2017-02-22_16-41-00"
 prefix="tilt_{}".format(name)
 suffix="_after.txt"
 dirs = os.listdir( path )
@@ -66,7 +79,6 @@ for f in dirs:
         if f.startswith(prefix) and f.endswith(suffix):
                 filenamelist.extend([f])
 filenamelist.sort()
-
 
 for index, filename in enumerate(filenamelist):
         print index, filename
@@ -77,23 +89,32 @@ for index, filename in enumerate(filenamelist):
                 tilt_noise=np.vstack((tilt_noise, new_data))
 
 time_noise=tilt_noise[0:,0]
-datetime_noise=np.empty(np.size(time_noise),dtype="datetime64[ms]")
+datetime_noise= [None] * len(tilt_noise)
 for index,time_noise_inst in enumerate(time_noise):
         unix_time_f=time_noise[index]
-        datetime_data=datetime.datetime.fromtimestamp(unix_time_f).strftime('%Y-%m-%d %H:%M:%S.%f')
-        datetime_noise[index]=str(datetime_data)
+        datetime_data=datetime.datetime.fromtimestamp(unix_time_f)
+        datetime_noise[index]=datetime_data
 inst=tilt_noise[0:,1]
 #To select certain regions
 ##start=1000
 ##end=start+3600*16
-##time_noise=tilt_noise[start:end,0]
-##inst=tilt_noise[start:end,1]
-window=3*16
-mov_ave=three_moving_average(three_moving_average(inst,window),window*3)
-mov_ave_second=three_moving_average(three_moving_average(mov_ave,window),window)
-mov_ave_three=fifteen_moving_average(mov_ave_second,window*3)
+##datetime_noise=datetime_noise[start:end]
+##inst=inst[start:end]
 
-
+window=10*16
+mov_ave=three_moving_average(inst,window)
+mov_ave_second=fifteen_moving_average(mov_ave,window)
+mov_ave_three=fifteen_moving_average(mov_ave_second,window)
 plot_conv_ma()
 
+smooth_results=np.column_stack((time_noise, datetime_noise, inst, mov_ave, mov_ave_second, mov_ave_three))
+np.savetxt("{}_smooth.txt".format(prefix),smooth_results,
+                             delimiter="  ", fmt="%s",
+                             header="unixtime  datetime  inst.  Filter1  Filter2   Filter 3  ")
+toc=time.time()
+print "Runtime:{}".format(toc-tic)
+
                   
+
+
+        

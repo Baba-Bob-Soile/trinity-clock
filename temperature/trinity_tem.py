@@ -3,6 +3,7 @@ import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as md
 import numpy as np
+import os
 import os.path
 from ds18b20 import DS18B20
 
@@ -37,45 +38,61 @@ def plot_temp():
 sensors = DS18B20.get_all_sensors()
 no_of_sensors=len(DS18B20.get_available_sensors())
 sensor =np.array([])
-sensor_header="unixtime  datetime  Probe1(bottom) #2   #3  #4  #5   #6(top)\n"
+sensor_header="unixtime  Probe1(bottom) #2   #3  #4  #5   #6(top)\n"
 print(sensor_header)
 tic=time.time()
-start_time=datetime.datetime.now()
-start_time_formatted=start_time.strftime("%Y-%m-%d_%H-%M-%S")
-start_time_formatted="test4"
+
 print("In While Loop...")
 path="/home/pi/Temperature/"
 sensor_data= sensor_header
 
-image_name="{}{}.png".format(path,start_time_formatted)
-txt_name="{}{}.txt".format(path,start_time_formatted)
-
-if os.path.isfile(txt_name) != True: 
-    f=open("{}".format(txt_name), "a+")
-    f.write("{}".format(sensor_header))
-f=open("{}".format(txt_name), "a+")
 while True:
-    tic=time.time()
+    start_time=datetime.datetime.now()
+    start_time_formatted=start_time.strftime("%Y-%m-%d")
+    year_month=start_time.strftime("%Y/%m/")
+    new_path="{}{}".format(path,year_month)
+    
+    #start_time_formatted="test_fixed"
+    image_name="{}{}.png".format(new_path,start_time_formatted)
+    txt_name="{}{}.txt".format(new_path,start_time_formatted)
+
+    #Makes directory if it doesn't exist
+    if not os.path.exists(new_path):
+        os.makedirs(new_path)
+    #Writes header to file if it did not exist previously
+    if os.path.isfile(txt_name) != True: 
+        f=open("{}".format(txt_name), "a+")
+        f.write("{}".format(sensor_header))
+    f=open("{}".format(txt_name), "a+")
+    
+    data=np.array([])
     unixtime=time.time()
-    probe_data=[None]*(no_of_sensors+1)
-    probe_data[0]=unixtime
+    tic=unixtime
+    data=np.append(data,[unixtime])
 
     for index,sensor in enumerate(sensors):
-        if index==0: probe_data[6]=round(sensor.get_temperature(),4)
-        if index==1: probe_data[4]=round(sensor.get_temperature(),4)
-        if index==2: probe_data[3]=round(sensor.get_temperature(),4)
-        if index==3: probe_data[5]=round(sensor.get_temperature(),4)
-        if index==4: probe_data[1]=round(sensor.get_temperature(),4)
-        if index==5: probe_data[2]=round(sensor.get_temperature(),4)
-    print probe_data
+        data=np.append(data, sensor.get_temperature())
+
+    #rearranges the data to txt file arrange in physical order
+    probe_data= [None] * len(data)
+    probe_data[0]=data[0]
+    probe_data[1]=round(data[5],4)
+    probe_data[2]=round(data[6],4)
+    probe_data[3]=round(data[3],4)
+    probe_data[4]=round(data[2],4)
+    probe_data[5]=round(data[4],4)
+    probe_data[6]=round(data[1],4)
+    print probe_data[1:]
 
     f.write("{}  {}  {}  {}  {}  {}  {} \n".format(probe_data[0],probe_data[1],
                                               probe_data[2],probe_data[3],
                                               probe_data[4],probe_data[5],
                                               probe_data[6]))
-    f.close
+    f.close #saves file
+    
     f=open("{}".format(txt_name), "a+")
-    #plot_temp()
+    plot_temp()
 
-    while time.time()-tic<10:
-        time.sleep(0.1)
+    #Waits for a minute before plotting next data
+    while time.time()-tic<60:
+        time.sleep(0.01)

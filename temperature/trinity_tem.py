@@ -42,7 +42,7 @@ print(sensor_header)
 tic=time.time()
 start_time=datetime.datetime.now()
 start_time_formatted=start_time.strftime("%Y-%m-%d_%H-%M-%S")
-start_time_formatted="test_fixed"
+start_time_formatted="test4"
 print("In While Loop...")
 path="/home/pi/Temperature/"
 sensor_data= sensor_header
@@ -54,23 +54,20 @@ if os.path.isfile(txt_name) != True:
     f=open("{}".format(txt_name), "a+")
     f.write("{}".format(sensor_header))
 f=open("{}".format(txt_name), "a+")
-while True: 
-    data=np.array([])
+while True:
+    tic=time.time()
     unixtime=time.time()
-    data=np.append(data,[unixtime])
+    probe_data=[None]*(no_of_sensors+1)
+    probe_data[0]=unixtime
 
     for index,sensor in enumerate(sensors):
-        data=np.append(data, sensor.get_temperature())
-
-    probe_data= [None] * len(data)
-    probe_data[0]=data[0]
-    probe_data[1]=round(data[5],4)
-    probe_data[2]=round(data[6],4)
-    probe_data[3]=round(data[3],4)
-    probe_data[4]=round(data[2],4)
-    probe_data[5]=round(data[4],4)
-    probe_data[6]=round(data[1],4)
-    print probe_data[1:]
+        if index==0: probe_data[6]=round(sensor.get_temperature(),4)
+        if index==1: probe_data[4]=round(sensor.get_temperature(),4)
+        if index==2: probe_data[3]=round(sensor.get_temperature(),4)
+        if index==3: probe_data[5]=round(sensor.get_temperature(),4)
+        if index==4: probe_data[1]=round(sensor.get_temperature(),4)
+        if index==5: probe_data[2]=round(sensor.get_temperature(),4)
+    print probe_data
 
     f.write("{}  {}  {}  {}  {}  {}  {} \n".format(probe_data[0],probe_data[1],
                                               probe_data[2],probe_data[3],
@@ -78,6 +75,7 @@ while True:
                                               probe_data[6]))
     f.close
     f=open("{}".format(txt_name), "a+")
-    plot_temp()
+    #plot_temp()
 
-    time.sleep(1)
+    while time.time()-tic<10:
+        time.sleep(0.1)

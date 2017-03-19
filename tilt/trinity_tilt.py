@@ -1,3 +1,4 @@
+from __future__ import print_function
 from time import sleep
 from scipy import signal
 import numpy as np
@@ -14,7 +15,8 @@ spi.max_speed_hz = 10000#150000
 spi.cshigh = False
 
 def twos_complement(input_value, num_bits):
-	'''Calculates a two's complement integer from the given input value's bits'''
+	#Calculates a two's complement integer
+        #from the given input value's bits
 	mask = 2**(num_bits - 1)
 	return -(input_value & mask) + (input_value & ~mask)
 def ConvertVolts(data,places):
@@ -76,52 +78,48 @@ def ReadChannel():
   tilt_corrected=tilt_measured*float(40000/six_data)
   return tilt_corrected
 
-print('Reading LTC1867 values, press Ctrl-C to quit...')
+print("Reading LTC1867 values, press Ctrl-C to quit...")
 
 delay=0.05
 reading=ReadChannel()
 index=0
 saved=False
-written=0  
+written=0
+header="time  inst.\n"
 
 tic= time.time()
 datetime_now=datetime.datetime.now()
 time_formatted=datetime_now.strftime("%Y-%m-%d_%H-%M-%S")
-time_formatted="tilt8b"
+##time_formatted="49_60_batt"
 filename="tilt_{}".format(time_formatted)
-filename_txt= "{}.txt".format(filename)
+filename_txt= "{}_1_hr_after.txt".format(filename,0)
+f=open("{}".format(filename_txt), "a+")
+f.write("{}".format(header))
 while True:
-          
-          #filename="this is a test"
-          
           time_now=time.time()
           tilt_inst = ReadChannel()
           index=index +1
           sleep(delay)
-          # Wait before repeating loop
-          if index==1:
-                  results=[time_now,tilt_inst]
-          else:
-                  results=np.vstack((results, [time_now,tilt_inst]))
-                  
+          
+          f.write("{}  {}\n".format(time_now, tilt_inst))
+          
           timediff=time_now-tic
           timediff_secs=int(timediff)
-          if timediff_secs%5==0 and timediff_secs>4 :
-                  print index, timediff, tilt_inst
-                  np.savetxt("{}".format(filename_txt),results,
-                             delimiter="  ", fmt="%s",
-                             header="time  inst.")
-                  saved=True     
           no_hours= timediff_secs/3600
+          if timediff_secs%5==0 and timediff_secs>4:
+                  print(index, timediff, no_hours, tilt_inst)
+                  f.close
+                  f=open("{}".format(filename_txt), "a+")
           if timediff_secs%3600==0 and no_hours>0 and written != no_hours:
-                  print "Written hour data to file"
-                  np.savetxt("{}_{}_hr_after.txt".format(filename,no_hours)
-                             ,results,
-                             delimiter="  ", fmt="%s",
-                             header="time  inst.")
+                  print("Saving new hour data to new file")
                   results=[time_now,tilt_inst]
                   written=no_hours
+                  if no_hours==24:
+                          break
                   filename_txt="{}_{}_hr_after.txt".format(filename,no_hours+1)
+                  f=open("{}".format(filename_txt), "a+")
+                  f.write("{}".format(header))
+                      
           if saved:
 ##                  tictic=datetime.datetime.now()
 ##                  tilt_noise=np.loadtxt("{}".

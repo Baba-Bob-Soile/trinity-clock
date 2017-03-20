@@ -10,57 +10,57 @@ import imageio
 import matplotlib as mpl
 mpl.use('Agg')
 from PIL import Image
-from skimage import data
-from skimage.feature import blob_doh, blob_log, blob_dog
 from matplotlib import pyplot as plt
 from matplotlib import patches as patch
-from math import sqrt
-from skimage.color import rgb2gray
 from time import sleep
-import math
-from SimpleCV import Image, Color
+import cv2
 
-def roundup(x):
-        return int(math.ceil(x/5.0))*5
 def find_blob_coords (image_name,index,filename):
 
 
         #Finds laser using difference of Hessian algorithm
-        
-        #Plots circle of blob found on original image
-        img=Image(image_name)
-        img.resize(img.width/5, img.height/5)
-        img.save(image_name)
-        img.grayscale()
-        img.save(image_name)
-        img.erode()
-        img.smooth()
-        img.save(image_name)
-        blobs=img.findBlobs(minsize= 100,maxsize=1000)
         print "index:{}".format(index)
+        #Plots circle of blob found on original image
+        im = cv2.imread(image_name)
+        im =cv2.resize(im,None,fx=0.5, fy=0.5, interpolation = cv2.INTER_AREA)
+        im =cv2.cvtColor(im, cv2.COLOR_RGB2GRAY )
+        im =cv2.GaussianBlur(im,(9,9),0)
         
-        if blobs:
-                circles = blobs.filter([b.isCircle(1) for b in blobs])
-                for b in circles:
-                        print b
-                        print "radius:{}".format(b.radius())
-                        print "centre:({}, {})".format(b.x,b.y)
+        thresh = cv2.threshold(im, 200, 255, cv2.THRESH_BINARY)[1]
+
+        thresh = cv2.erode(thresh, None, iterations=1)
+        thresh = cv2.dilate(thresh, None, iterations=4)
+
+        thresh
+        imCopy = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB )
+        contours, hierarchy= cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                cv2.CHAIN_APPROX_NONE)
+        
+        if len(contours)!=0:
                 
-                if circles:
-                        print ("found blob at index {}".format(index))
-                        
-			img.drawCircle((circles[-1].x, circles[-1].y),
-                                       circles[-1].radius(),
-                                       Color.BLUE,3)
-                        img.save()
-                        xmax=circles[-1].x
-                        ymax=circles[-1].y
-                        return np.array([index,xmax,ymax])
-                else:
-                        return []
+                contour_areas = [cv2.contourArea(contour) for contour in contours]
+                max_index = np.argmax(contour_areas)
+                max_contour=contours[max_index]
+
+                contour_moment = cv2.moments(max_contour)
+                cx = int(contour_moment['m10']/contour_moment['m00'])
+                cy = int(contour_moment['m01']/contour_moment['m00'])
+####                (x,y),radius = cv2.minEnclosingCircle(max_contour)
+####                center = (int(x),int(y))
+####                radius = int(radius)
+####                cv2.circle(imCopy,center,radius,(0,0,255),1)
+####                print "Centre:({},{})".format(x,y)
+####                print "radius: {}".format(radius)
+##                cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
+                print "blob found"
+                cv2.imwrite(image_name,imCopy)
+                return np.array([index,cx,cy])
         else:
-                plt.clf()
+                cv2.imwrite(image_name,imCopy)
                 return []
+
+        
+
 
 tic= datetime.datetime.now()
 while True:
@@ -102,7 +102,7 @@ while True:
                 index_results=find_blob_coords(image_name,index,video_name)
                 if index_results!=[]:
                         results=np.vstack((results, index_results))
-    print"results {}".format(results)
+    #print"results {}".format(results)
     xy_coords=results[1:,1:]
     plt.figure()
     plt.scatter(xy_coords[0:,0],xy_coords[0:,1])
@@ -113,7 +113,7 @@ while True:
     plt.ylim(ymin=0)
     plt.savefig("{}-trajectory.png".format(video_name))
     toc=datetime.datetime.now()
-    programtime=toc-tic()
+    programtime=toc-tic
     print"Time: {}".format(programtime.seconds)
     
     

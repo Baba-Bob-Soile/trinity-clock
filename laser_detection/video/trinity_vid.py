@@ -32,11 +32,11 @@ def find_first_blob_coords(contours,imCopy):
         contour_moment = cv2.moments(max_contour)
         cx = int(contour_moment['m10']/contour_moment['m00'])
         cy = int(contour_moment['m01']/contour_moment['m00'])
-        (x,y),radius = cv2.minEnclosingCircle(max_contour)
-        center = (int(x),int(y))
-        radius = int(radius)
-        cv2.circle(imCopy,center,radius,(0,0,255),1)
-        cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
+##        (x,y),radius = cv2.minEnclosingCircle(max_contour)
+##        center = (int(x),int(y))
+##        radius = int(radius)
+##        cv2.circle(imCopy,center,radius,(0,0,255),1)
+##        cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
 
         return cx, cy
         
@@ -46,11 +46,11 @@ def find_blob_coords (frame,index,video_name):
         #Load Image, Resize and Convert To Grayscale
         im = frame
         image_name="{}-index{}cleaned.png".format(video_name,index)
-        im_name="{}-index{}.png".format(video_name,index)
+        #im_name="{}-index{}.png".format(video_name,index)
         im =cv2.resize(im,None,fx=0.5, fy=0.5, interpolation = cv2.INTER_AREA)
         height, width, channels = im.shape
         im =cv2.cvtColor(im, cv2.COLOR_RGB2GRAY )
-        cv2.imwrite(im_name,im)
+        #cv2.imwrite(im_name,im)
         
         if blob_found==True:
                 #If Blob found in Previous Frame
@@ -74,7 +74,7 @@ def find_blob_coords (frame,index,video_name):
                         blob_found=True
                         return np.array([index,cx,cy])
                 else:
-                        cv2.imwrite(image_name,roi)#Change im to roi for troubleshooting
+                        #cv2.imwrite(image_name,roi)#Change im to roi for troubleshooting
                         blob_found=False
                         print "no blob found in cropped frame #{}".format(index)
                         return []
@@ -89,11 +89,11 @@ def find_blob_coords (frame,index,video_name):
                 
                 if len(contours)!=0:                  
                         cx, cy= find_first_blob_coords(contours, imCopy)
-                        cv2.imwrite(image_name,imCopy)
+                        #cv2.imwrite(image_name,imCopy)
                         blob_found=True
                         return np.array([index,cx,cy])
                 else:
-                        cv2.imwrite(image_name,im)
+                        #cv2.imwrite(image_name,im)
                         blob_found=False
                         print "no blob found in frame #{}".format(index)
                         return []
@@ -122,24 +122,24 @@ while True:
     tic=datetime.datetime.now()
     time_now=datetime.datetime.now()
 ##    time_formatted=time_now.strftime("%Y-%m-%d_%H-%M-%S")
-    time_formatted="redb3"
+    time_formatted="red7"
     
     video_name= "/home/pi/camera/{}".format(time_formatted)
     video_name_h264= "{}.h264".format(video_name)
     video_name_mp4= "{}.mp4".format(video_name)
     #Camera takes picture and saves its name as the time stamp
-    print("taking picture")
+    print("taking video")
 ##    with picamera.PiCamera() as camera:
 ##        camera.resolution=(640,480)
 ##        camera.start_recording("{}".format(video_name_h264))
 ##        camera.wait_recording(5)
 ##        camera.stop_recording()
-    #convert to mp4 using gpac wrapper
-##call("MP4Box -fps 30 -add {} {}".format(video_name_h264,video_name_mp4),shell=True)
-    #Remove h264 file to save memory
-#Line removed ASCII errror
+    #convert h264 to mp4 using gpac wrapper so it can be watched on PC/Mac
+##    call("MP4Box -fps 30 -add {} {}".format(video_name_h264,video_name_mp4),shell=True)
+
 
     #Loads Video
+
     vid = cv2.VideoCapture(video_name_mp4)
     index=0
     results=np.array(["index","x-coord","y-coord"])
@@ -150,7 +150,6 @@ while True:
     #Iterates through each video frame and finds blob
     while(vid.isOpened()):
             index=index+ 1
-            print "index{}".format(index)
             ret, frame = vid.read()     
             if ret==True:
                 index_results=find_blob_coords(frame,index,video_name)
@@ -158,8 +157,6 @@ while True:
                         results=np.vstack((results, index_results))
             else:
                     break
-            
-    
     print"results {}".format(results)
     xy_coords=results[1:,1:]
     plot_trajectory(xy_coords)

@@ -19,7 +19,6 @@ def find_blob_coords (image_name,index,filename):
         
         global cx, cy, blob_found, radius
         #Finds laser using difference of Hessian algorithm
-        print "index:{}".format(index)
         #Plots circle of blob found on original image
 
         im = cv2.imread(image_name)
@@ -27,27 +26,21 @@ def find_blob_coords (image_name,index,filename):
                 return []
         im =cv2.resize(im,None,fx=0.5, fy=0.5, interpolation = cv2.INTER_AREA)
         height, width, channels = im.shape
-        #print height, width
         im =cv2.cvtColor(im, cv2.COLOR_RGB2GRAY )
         if blob_found==True:
                 xmin = max(0,cx-20)
                 ymin = max(0,cy-20)
                 xmax = min(width, cx +20)
                 ymax = min(height, cy+20)
-                if index==129:
-                        print xmin, ymin, xmax, ymax
+
                 roi = im[ymin:ymax,
                         xmin:xmax]
-                print "image_cropped"
                 roi =cv2.GaussianBlur(roi,(9,9),0)
-                if roi is None:
-                        print "I am None"
-                        return []
-                print "channels:{}".format(len(roi.shape))            
+          
                 thresh = cv2.threshold(roi, 200, 255, cv2.THRESH_BINARY)[1]
 
                 thresh = cv2.erode(thresh, None, iterations=1)
-                thresh = cv2.dilate(thresh, None, iterations=4)
+                thresh = cv2.dilate(thresh, None, iterations=2)
 
                 imCopy = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB )
                 contours, hierarchy= cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
@@ -62,24 +55,16 @@ def find_blob_coords (image_name,index,filename):
                         contour_moment = cv2.moments(max_contour)
                         cropped_cx = int(contour_moment['m10']/contour_moment['m00'])
                         cropped_cy = int(contour_moment['m01']/contour_moment['m00'])
-                        print "cropped centroid:({},{})".format(cropped_cx,cropped_cy)
                         (x,y),radius = cv2.minEnclosingCircle(max_contour)
                         center = (int(x),int(y))
                         radius = int(radius)
                         cx = cropped_cx+ xmin
                         cy = cropped_cy+ ymin
-                        
-                        print "shifted centroid:({},{})".format(cx,cy)
-                        cv2.circle(imCopy,center,radius,(0,0,255),1)
-                        #cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
-                        print "blob found"
-                        cv2.imwrite(image_name,imCopy)
                         blob_found=True
                         return np.array([index,cx,cy])
                 else:
-                        cv2.imwrite(image_name,imCopy)
                         blob_found=False
-                        print "no blob found in cropped"
+                        print "no blob found in frame #{}".format(index)
                         return []
 
         else:
@@ -88,7 +73,7 @@ def find_blob_coords (image_name,index,filename):
                 thresh = cv2.threshold(im, 200, 255, cv2.THRESH_BINARY)[1]
 
                 thresh = cv2.erode(thresh, None, iterations=1)
-                thresh = cv2.dilate(thresh, None, iterations=4)
+                thresh = cv2.dilate(thresh, None, iterations=2)
 
                 imCopy = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB )
                 contours, hierarchy= cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
@@ -106,16 +91,15 @@ def find_blob_coords (image_name,index,filename):
                         (x,y),radius = cv2.minEnclosingCircle(max_contour)
                         center = (int(x),int(y))
                         radius = int(radius)
-                        print "centroid:({},{})".format(cx,cy)
                         cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
-                        print "first blob found"
+                        cv2.circle(imCopy,center,radius,(0,0,255),1)
                         cv2.imwrite(image_name,imCopy)
                         blob_found=True
                         return np.array([index,cx,cy])
                 else:
                         cv2.imwrite(image_name,imCopy)
-                        contours=0
                         blob_found=False
+                        print "no blob found in frame #{}".format(index)
                         return []                
                             
 tic= datetime.datetime.now()
@@ -162,7 +146,7 @@ while True:
                 index_results=find_blob_coords(image_name,index,video_name)
                 if index_results!=[]:
                         results=np.vstack((results, index_results))
-    #print"results {}".format(results)
+    print"results {}".format(results)
     xy_coords=results[1:,1:]
     plt.figure()
     plt.scatter(xy_coords[0:,0],xy_coords[0:,1])

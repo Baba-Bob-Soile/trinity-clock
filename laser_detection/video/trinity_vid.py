@@ -10,64 +10,126 @@ import imageio
 import matplotlib as mpl
 mpl.use('Agg')
 from PIL import Image
-from skimage import data
-from skimage.feature import blob_doh, blob_log, blob_dog
 from matplotlib import pyplot as plt
 from matplotlib import patches as patch
-from math import sqrt
-from skimage.color import rgb2gray
 from time import sleep
-import math
-from SimpleCV import Image, Color
 import cv2
 
-def roundup(x):
-        return int(math.ceil(x/5.0))*5
 def find_blob_coords (image_name,index,filename):
-
+        
+        global cx, cy, blob_found, radius
+        #Finds laser using difference of Hessian algorithm
         print "index:{}".format(index)
-        img = cv2.imread(image_name)
-        orig = img.copy()
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        radius=11
-        gray = cv2.GaussianBlur(gray, (radius,radius), 0)
-        (minVal, maxVal, minLoc, maxLoc) = cv2.minMaxLoc(gray)
-        img = orig.copy()
-        img=cv2.circle(img, maxLoc, radius, (255, 0, 0), 2)
- 
-        # display the results of our newly improved method
-        cv2.imwrite(image_name, img)
-        ##        if blobs:
-##                circles = blobs.filter([b.isCircle(0.2) for b in blobs])
-##                for b in circles:
-##                        print b
-##                        print "radius:{}".format(b.radius())
-##                        print "centre:({}, {})".format(b.x,b.y)
-##                
-##                if circles:
-##                        print ("found blob at index {}".format(index))
-##                        
-##			img.drawCircle((circles[-1].x, circles[-1].y),
-##                                       circles[-1].radius(),
-##                                       Color.BLUE,3)
-##                        img.save()
-##                        xmax=circles[-1].x
-##                        ymax=circles[-1].y
-##                        return np.array([index,xmax,ymax])
-##                else:
-##                        return []
-##        else:
-##                plt.clf()
-##                return []
+        #Plots circle of blob found on original image
 
+        im = cv2.imread(image_name)
+        if im is None:
+                return []
+        im =cv2.resize(im,None,fx=0.5, fy=0.5, interpolation = cv2.INTER_AREA)
+        height, width, channels = im.shape
+        #print height, width
+        im =cv2.cvtColor(im, cv2.COLOR_RGB2GRAY )
+        if blob_found==True:
+                xmin = max(0,cx-20)
+                ymin = max(0,cy-20)
+                xmax = min(width, cx +20)
+                ymax = min(height, cy+20)
+                if index==129:
+                        print xmin, ymin, xmax, ymax
+                roi = im[ymin:ymax,
+                        xmin:xmax]
+                print "image_cropped"
+                roi =cv2.GaussianBlur(roi,(9,9),0)
+                if roi is None:
+                        print "I am None"
+                        return []
+                print "channels:{}".format(len(roi.shape))            
+                thresh = cv2.threshold(roi, 200, 255, cv2.THRESH_BINARY)[1]
+
+                thresh = cv2.erode(thresh, None, iterations=1)
+                thresh = cv2.dilate(thresh, None, iterations=4)
+
+                imCopy = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB )
+                contours, hierarchy= cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_NONE)
+                
+                if len(contours)!=0:
+                        
+                        contour_areas = [cv2.contourArea(contour) for contour in contours]
+                        max_index = np.argmax(contour_areas)
+                        max_contour=contours[max_index]
+
+                        contour_moment = cv2.moments(max_contour)
+                        cropped_cx = int(contour_moment['m10']/contour_moment['m00'])
+                        cropped_cy = int(contour_moment['m01']/contour_moment['m00'])
+                        print "cropped centroid:({},{})".format(cropped_cx,cropped_cy)
+                        (x,y),radius = cv2.minEnclosingCircle(max_contour)
+                        center = (int(x),int(y))
+                        radius = int(radius)
+                        cx = cropped_cx+ xmin
+                        cy = cropped_cy+ ymin
+                        
+                        print "shifted centroid:({},{})".format(cx,cy)
+                        cv2.circle(imCopy,center,radius,(0,0,255),1)
+                        #cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
+                        print "blob found"
+                        cv2.imwrite(image_name,imCopy)
+                        blob_found=True
+                        return np.array([index,cx,cy])
+                else:
+                        cv2.imwrite(image_name,imCopy)
+                        blob_found=False
+                        print "no blob found in cropped"
+                        return []
+
+        else:
+                im =cv2.GaussianBlur(im,(9,9),0)
+                
+                thresh = cv2.threshold(im, 200, 255, cv2.THRESH_BINARY)[1]
+
+                thresh = cv2.erode(thresh, None, iterations=1)
+                thresh = cv2.dilate(thresh, None, iterations=4)
+
+                imCopy = cv2.cvtColor(thresh, cv2.COLOR_GRAY2RGB )
+                contours, hierarchy= cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
+                        cv2.CHAIN_APPROX_NONE)
+                
+                if len(contours)!=0:
+                        
+                        contour_areas = [cv2.contourArea(contour) for contour in contours]
+                        max_index = np.argmax(contour_areas)
+                        max_contour=contours[max_index]
+
+                        contour_moment = cv2.moments(max_contour)
+                        cx = int(contour_moment['m10']/contour_moment['m00'])
+                        cy = int(contour_moment['m01']/contour_moment['m00'])
+                        (x,y),radius = cv2.minEnclosingCircle(max_contour)
+                        center = (int(x),int(y))
+                        radius = int(radius)
+                        print "centroid:({},{})".format(cx,cy)
+                        cv2.drawContours(imCopy, max_contour, -1, (0,255,0), 1)
+                        print "first blob found"
+                        cv2.imwrite(image_name,imCopy)
+                        blob_found=True
+                        return np.array([index,cx,cy])
+                else:
+                        cv2.imwrite(image_name,imCopy)
+                        contours=0
+                        blob_found=False
+                        return []                
+                            
 tic= datetime.datetime.now()
 while True:
     print("start")
+    blob_found=False
+    cx=0
+    cy=0
+    radius=0
     #Names image to be saved with timestamp so it is unique
     tic=datetime.datetime.now()
     time_now=datetime.datetime.now()
 ##    time_formatted=time_now.strftime("%Y-%m-%d_%H-%M-%S")
-    time_formatted="red7"
+    time_formatted="redb3"
     
     video_name= "/home/pi/camera/{}".format(time_formatted)
     video_name_h264= "{}.h264".format(video_name)
@@ -98,21 +160,21 @@ while True:
                 plt.savefig("{}".format(image_name), bbox_inches="tight", pad_inches=0)
                 plt.clf()
                 index_results=find_blob_coords(image_name,index,video_name)
-##                if index_results!=[]:
-##                        results=np.vstack((results, index_results))
-##    print"results {}".format(results)
-##    xy_coords=results[1:,1:]
-##    plt.figure()
-##    plt.scatter(xy_coords[0:,0],xy_coords[0:,1])
-##    plt.title("Laser Trajectory")
-##    plt.xlabel("x_coords")
-##    plt.ylabel("y_coords")
-##    plt.xlim(xmin=0)
-##    plt.ylim(ymin=0)
-##    plt.savefig("{}-trajectory.png".format(video_name))
-##    toc=datetime.datetime.now()
-##    programtime=toc-tic()
-##    print"Time: {}".format(programtime.seconds)
-##    
+                if index_results!=[]:
+                        results=np.vstack((results, index_results))
+    #print"results {}".format(results)
+    xy_coords=results[1:,1:]
+    plt.figure()
+    plt.scatter(xy_coords[0:,0],xy_coords[0:,1])
+    plt.title("Laser Trajectory")
+    plt.xlabel("x_coords")
+    plt.ylabel("y_coords")
+    plt.xlim(xmin=0)
+    plt.ylim(ymin=0)
+    plt.savefig("{}-trajectory.png".format(video_name))
+    toc=datetime.datetime.now()
+    programtime=toc-tic
+    print"Time: {}".format(programtime.seconds)
+    
     
 
